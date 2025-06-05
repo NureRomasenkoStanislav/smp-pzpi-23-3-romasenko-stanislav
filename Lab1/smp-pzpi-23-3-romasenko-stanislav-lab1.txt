@@ -1,0 +1,158 @@
+ХАРКІВСЬКИЙ НАЦІОНАЛЬНИЙ
+УНІВЕРСИТЕТ РАДІОЕЛЕКТРОНІКИ
+ЗВІТ
+з лабораторної роботи № 1
+з дисципліни «Скриптові мови програмування»
+Виконав: Прийняв:
+ст. гр ПЗПІ-23-3 ст.викл. Сокорчук І.П. Ромасенко Станіслав
+Харків 2025
+1
+1 ІСТОРІЯ ЗМІН
+№ Дата Версія звіту Опис змін та виправлень
+1 04.06.2025 0.1 Створено розділ «Завдання» 2 04.06.2025 0.1 Створено розділ «Опис Виконаної
+роботи» 3 05.06.2025 0.1 Створено розділ «Висновок» та
+Додатків
+2 ЗАВДАННЯ
+Розробити Bash-скрипт, що перетворює розклад занять з CSV- формату, отриманого з CIST, у формат CSV-файлу, сумісного з
+Google Calendar, із підтримкою вибору групи, автоматичного
+визначення кодування Windows-1251, формату часу AM/PM, нумерації пар, а також опцій --help, --version, --quiet. 3 ОПИС ВИКОНАНОЇ РОБОТИ
+Було реалізовано Bash-скрипт, який:
+Обробляє аргументи командного рядка (--help, --version, --quiet, позиційні параметри);
+За відсутності вхідного файлу або групи — пропонує вибрати
+їх зі списку;
+Конвертує вхідний CSV з кодування Windows-1251 у UTF-8;
+Перетворює дати з формату дд.мм.рррр у формат мм/дд/рррр, а час — у формат 12-годинного представлення (AM/PM) через
+команду date;
+2
+Генерує Google-сумісний CSV-файл з колонками Subject,Start
+date,Start time,End date,End time,Description;
+Нумерує пари автоматично (наприклад, “Математика №1”, “Фізика №2”);
+Виводить результат у файл виду
+Google_TimeTable_дд_мм_рррр.csv;
+Підтримує опцію тихого режиму (--quiet), яка приховує
+виведення на екран. Скрипт враховує можливу відсутність групи або файлу та
+обробляє ці ситуації через select. Також використовується iconv для
+перекодування, awk для парсингу CSV та sed для очищення символів
+переносу. 4 ВИСНОВКИ
+У результаті виконання лабораторної роботи було створено Bash- скрипт, який дозволяє швидко конвертувати навчальний розклад у
+формат, сумісний з Google Calendar. Отримано практичні навички роботи з обробкою CSV-файлів, конвертацією кодування, маніпуляціями з датами та часом у Bash, а
+також реалізацією інтерфейсу командного рядка з підтримкою опцій. Розроблений скрипт є зручним інструментом для автоматизованої
+підготовки розкладів для студентів.
+3
+ДОДАТОК А
+Відеозапис
+Відеозапис презентації результатів лабораторної роботи:
+https://drive.google.com/file/d/1C3UkA05Tzje5EQvR5uwsGR6vGwL1F
+5DY/view?usp=drive_link
+Хронологічний опис відеозапису:
+00:00 - Привітання
+00:40 - Цикл While для help, version
+01:10 - Розпізнавання назви файлу
+01:47 - конвертація файлу
+02:28 - Визначення групи яка потрібна
+02:44 - Формування output файлу
+03:10 - Обробка тексту awk
+04:44 - Тестування
+4
+ДОДАТОК Б
+Графічні матеріали
+Рисунок Б.1 - Вміст нового файлу
+Рисунок Б.2 - Вигляд імпортованого файлу в календарі
+5
+ДОДАТОК В
+Програмний код
+#!/bin/bash
+QUIET=false
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+case "$1" in
+--help)
+print_help
+exit 0
+;;
+--version)
+print_version
+exit 0
+;;
+-q|--quiet)
+QUIET=true
+shift
+;;
+*)
+POSITIONAL+=("$1")
+shift
+;;
+esac
+done
+set -- "${POSITIONAL[@]}"
+GROUP="$1"
+FILE="$2"
+if [[ -z "$FILE" ]]; then
+echo "Select a CSV file:"
+select FILE in $(ls TimeTable_??_??_20??.csv 2>/dev/null |
+sort); do
+[[ -n "$FILE" ]] && break
+done
+fi
+6
+[[ ! -f "$FILE" ]] && error_exit "File '$FILE' not found."
+TEMP_FILE="/tmp/converted_$$.csv"
+iconv -f WINDOWS-1251 -t UTF-8 "$FILE" -o "$TEMP_FILE" ||
+error_exit "Failed to convert encoding."
+sed -i 's/\r/\n/g' "$TEMP_FILE"
+if [[ -z "$GROUP" ]]; then
+GROUPS=$(awk -F ';' 'NR>1{print $2}' "$TEMP_FILE" | sort |
+uniq)
+GROUP_COUNT=$(echo "$GROUPS" | wc -l)
+if [[ "$GROUP_COUNT" -eq 1 ]]; then
+GROUP="$GROUPS"
+else
+echo "Select academic group:"
+select GROUP in $GROUPS; do
+[[ -n "$GROUP" ]] && break
+done
+fi
+fi
+[[ -z "$GROUP" ]] && error_exit "Group not specified or not
+selected."
+DATE_PART=$(echo "$FILE" | grep -oE '[0-9]{2}_[0-9]{2}_[0-
+9]{4}')
+OUTPUT_FILE="Google_TimeTable_${DATE_PART}.csv"
+$QUIET || echo "Subject,Start date,Start time,End date,End
+time,Description"
+echo "Subject,Start date,Start time,End date,End
+time,Description" > "$OUTPUT_FILE"
+lesson_num=1
+awk -F ',' -v group="$GROUP" -v quiet="$QUIET" -v
+out="$OUTPUT_FILE" -v lesson_num_start=1 '
+7
+BEGIN {
+OFS=","; lesson_num = lesson_num_start;
+}
+NR > 1 {
+gsub(/^"|"$/, "", $1);
+if (index($1, group)) {
+for (i=1; i<=NF; i++) {
+gsub(/^"|"$/, "", $i);
+}
+subject_full = $1;
+date = $2;
+start = $3;
+end = $5;
+desc = $12;
+split(date, d, ".");
+newdate = d[2] "/" d[1] "/" d[3];
+cmd = "date -d \"" start "\" +\"%I:%M %p\""; cmd | getline
+start12; close(cmd);
+cmd = "date -d \"" end "\" +\"%I:%M %p\""; cmd | getline
+end12; close(cmd);
+final_subject = subject_full " №" lesson_num;
+line = final_subject OFS newdate OFS start12 OFS newdate
+OFS end12 OFS desc;
+if (quiet != "true") print line;
+print line >> out;
+lesson_num++;
+}
+}' "$TEMP_FILE"
+rm "$TEMP_FILE"
+exit 0

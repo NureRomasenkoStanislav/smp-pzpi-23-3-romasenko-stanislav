@@ -1,0 +1,403 @@
+ХАРКІВСЬКИЙ НАЦІОНАЛЬНИЙ
+УНІВЕРСИТЕТ РАДІОЕЛЕКТРОНІКИ
+
+
+
+
+
+
+ЗВІТ
+з лабораторної роботи № 4
+з дисципліни «Скриптові мови програмування»
+
+
+
+
+
+
+
+
+
+
+
+Виконав: 									Прийняв: 
+ст. гр ПЗПІ-23-3 				                    ст.викл. Сокорчук І.П.  Ромасенко Станіслав 					
+
+
+
+Харків 2025
+
+1 ІСТОРІЯ ЗМІН
+№	Дата	Версія звіту	Опис змін та виправлень
+1	03.05.2025	0.1	Створено розділ «Завдання»
+2	4.05.2025	0.1	Створено розділ «Опис Виконаної роботи»
+3	5.05.2025	0.1	Створено розділ «Висновок» та Додатків
+
+2 ЗАВДАННЯ
+– Винести заголовок та підвал вебзастосунку у окремі файли (header.php, footer.php).
+– Реалізувати сторінку авторизації користувача з перевіркою введених даних (login.php, credential.php).
+– Додати головну точку входу до сайту (main.php), яка керує переходами між сторінками за параметром page.
+– Створити сторінку профілю користувача (profile.php) з можливістю редагування особистих даних, а також завантаження аватару.
+– Зберігати інформацію про користувача у файлі user_profile.json, а зображення — у теці uploads/.
+– Додати спільні стилі для всіх сторінок у файл style.css.
+
+3 ОПИС ВИКОНАНОЇ РОБОТИ  
+У ході виконання лабораторної роботи було створено мініатюрний PHP-застосунок, що реалізує функціональність вебсайту з авторизацією користувача та редагуванням профілю.
+Було реалізовано: 
+окремі компоненти для шапки (header.php) і підвалу (footer.php) сайту, які підключаються через include,
+форму авторизації (login.php) із перевіркою даних за зразком із credential.php,
+збереження стану сесії після входу та перенаправлення між сторінками через параметр page у main.php,
+сторінку профілю (profile.php), яка дозволяє змінити ім’я користувача та завантажити зображення, що зберігаються у форматі .json та .jpg/.png відповідно,
+базове оформлення у вигляді CSS-файлу style.css.
+Застосунок було протестовано локально на комп’ютері з використанням вбудованого PHP-сервера.
+
+4 ВИСНОВКИ  
+У результаті виконання лабораторної роботи було створено PHP-застосунок із базовим функціоналом обробки авторизації та профілю користувача.
+Отримано практичні навички роботи з PHP, сесіями, формами, JSON-файлами, завантаженням файлів на сервер та організацією структури застосунку.
+Розроблений код є основою для майбутнього масштабування та доповнення додатковими модулями.
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК А
+Відеозапис
+Відеозапис презентації результатів лабораторної роботи:  https://drive.google.com/file/d/1S1Q962I6ziGaq-ZhGV60IWGxSyJLn1AH/view?usp=sharing
+Хронологічний опис відеозапису:
+00:00 - Привітання
+00:20 - login.php
+00:45 - credentials.php
+01:05 - cart.php
+01:40 - product.php
+02:18 - Profile.php
+04:00 - main.php
+05:08 - footer та header
+05:58 - Тестування
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК Б
+Графічні матеріали
+
+
+Рисунок Б.1 - Вигляд меню покупок
+
+Рисунок Б.2 - Вигляд кошика
+
+Рисунок Б.2 - Профіль користувача
+
+
+
+
+
+
+
+
+
+
+ДОДАТОК В
+Програмний код
+Cart.php
+<?php
+$cart = $_SESSION['cart'] ?? [];
+
+if (isset($_GET['remove'])) {
+    unset($cart[(int)$_GET['remove']]);
+    $_SESSION['cart'] = $cart;
+    header('Location: main.php?page=cart');
+    exit;
+}
+?>
+
+<h2>Ваш кошик</h2>
+<?php if (empty($cart)): ?>
+    <p>Кошик порожній. <a href="main.php?page=products">Назад до покупок</a></p>
+<?php else: ?>
+    <table border="1">
+        <tr><th>ID</th><th>Назва</th><th>Ціна</th><th>Кількість</th><th>Сума</th><th>Дія</th></tr>
+        <?php
+        $total = 0;
+        foreach ($cart as $item):
+            $sum = $item['price'] * $item['count'];
+            $total += $sum;
+        ?>
+        <tr>
+            <td><?= $item['id'] ?></td>
+            <td><?= htmlspecialchars($item['name']) ?></td>
+            <td>$<?= $item['price'] ?></td>
+            <td><?= $item['count'] ?></td>
+            <td>$<?= $sum ?></td>
+            <td><a href="main.php?page=cart&remove=<?= $item['id'] ?>">Видалити</a></td>
+        </tr>
+        <?php endforeach; ?>
+        <tr><td colspan="4"><strong>Загалом</strong></td><td colspan="2"><strong>$<?= $total ?></strong></td></tr>
+    </table>
+<?php endif; ?>
+
+Credentials.php
+
+<?php
+return [
+    'username' => 'Test',
+    'password' => '123123'
+];
+
+Logout.php
+
+<?php
+session_unset();
+session_destroy();
+header('Location: main.php?page=login');
+exit;
+
+Main.php
+
+<?php
+session_start();
+require_once 'header.php';
+
+$page = $_GET['page'] ?? 'products';
+
+$protectedPages = ['products', 'cart', 'profile'];
+if (in_array($page, $protectedPages) && !isset($_SESSION['username'])) {
+    $page = 'page404';
+}
+
+switch ($page) {
+    case 'products':
+        require 'products.php';
+        break;
+    case 'cart':
+        require 'cart.php';
+        break;
+    case 'profile':
+        require 'profile.php';
+        break;
+    case 'login':
+        require 'login.php';
+        break;
+    case 'logout':
+        require 'logout.php';
+        break;
+    default:
+        require 'page404.php';
+        break;
+}
+
+require_once 'footer.php';
+
+Page404.php
+
+<h2>Будь ласка, увійдіть у систему</h2>
+<p>Для перегляду контенту сайту необхідно пройти авторизацію. <a href="main.php?page=login">Login</a></p>
+
+Products.php
+
+<?php
+$products = [
+    ['id' => 1, 'name' => 'Fanta', 'price' => 1],
+    ['id' => 2, 'name' => 'Sprite', 'price' => 1],
+    ['id' => 3, 'name' => 'Nuts', 'price' => 2],
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    foreach ($products as $product) {
+        $id = $product['id'];
+        $count = (int)($_POST["count_$id"] ?? 0);
+        if ($count > 0) {
+            $_SESSION['cart'][$id] = [
+                'id' => $id,
+                'name' => $product['name'],
+                'price' => $product['price'],
+                'count' => $count
+            ];
+        }
+    }
+    header('Location: main.php?page=cart');
+    exit;
+}
+?>
+
+<h2>Сторінка товарів</h2>
+<form method="POST">
+    <table>
+        <tr><th>Назва</th><th>Ціна</th><th>Кількість</th></tr>
+        <?php foreach ($products as $product): ?>
+            <tr>
+                <td><?= htmlspecialchars($product['name']) ?></td>
+                <td>$<?= $product['price'] ?></td>
+                <td><input type="number" name="count_<?= $product['id'] ?>" min="0" value="0"></td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+    <button type="submit">Купити</button>
+</form>
+
+Profile.php
+
+<?php
+// profile.php
+
+if (!isset($_SESSION['username'])) {
+    header("Location: main.php?page=404");
+    exit;
+}
+
+$profileFile = 'user_profile.json';
+$errors = [];
+$data = [
+    'name' => '',
+    'surname' => '',
+    'birthdate' => '',
+    'about' => '',
+    'photo' => ''
+];
+
+if (file_exists($profileFile)) {
+    $json = file_get_contents($profileFile);
+    $data = json_decode($json, true) ?? $data;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name'] ?? '');
+    $surname = trim($_POST['surname'] ?? '');
+    $birthdate = $_POST['birthdate'] ?? '';
+    $about = trim($_POST['about'] ?? '');
+    $photo = $data['photo'];
+
+    if ($name === ''  strlen($name) < 2) {
+        $errors[] = 'Ім\'я повинно бути не менше 2 символів.';
+    }
+    if ($surname === ''  strlen($surname) < 2) {
+        $errors[] = 'Прізвище повинно бути не менше 2 символів.';
+    }
+    if ($birthdate === '' || (time() - strtotime($birthdate)) < 16 * 365 * 24 * 60 * 60) {
+        $errors[] = 'Вам має бути не менше 16 років.';
+    }
+    if (strlen($about) < 50) {
+        $errors[] = 'Про себе повинно бути не менше 50 символів.';
+    }
+
+    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === 0) {
+        $allowed = ['image/jpeg', 'image/png', 'image/gif'];
+        if (in_array($_FILES['photo']['type'], $allowed)) {
+            $ext = pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION);
+            $fileName = 'uploads/' . uniqid('photo_', true) . "." . $ext;
+            move_uploaded_file($_FILES['photo']['tmp_name'], $fileName);
+            $photo = $fileName;
+        } else {
+            $errors[] = 'Недопустимий формат фото.';
+        }
+    }
+
+    if (empty($errors)) {
+        $data = [
+            'name' => $name,
+            'surname' => $surname,
+            'birthdate' => $birthdate,
+            'about' => $about,
+            'photo' => $photo
+        ];
+        file_put_contents($profileFile, json_encode($data));
+        header('Location: main.php?page=profile');
+        exit;
+    }
+}
+?>
+
+<h1>Профіль користувача</h1>
+<?php if ($errors): ?>
+    <ul style="color:red;">
+        <?php foreach ($errors as $e): ?>
+            <li><?= htmlspecialchars($e) ?></li>
+        <?php endforeach; ?>
+    </ul>
+<?php endif; ?>
+
+<form method="POST" enctype="multipart/form-data">
+    <label>Ім'я: <input name="name" value="<?= htmlspecialchars($data['name']) ?>"></label><br>
+    <label>Прізвище: <input name="surname" value="<?= htmlspecialchars($data['surname']) ?>"></label><br>
+    <label>Дата народження: <input type="date" name="birthdate" value="<?= htmlspecialchars($data['birthdate']) ?>"></label><br>
+    <label>Про себе:<br><textarea name="about" rows="5" cols="40"><?= htmlspecialchars($data['about']) ?></textarea></label><br>
+    <label>Фото: <input type="file" name="photo"></label><br>
+    <?php if ($data['photo']): ?><img src="<?= $data['photo'] ?>" width="150"><br><?php endif; ?>
+    <button type="submit">Зберегти</button>
+</form>
+
+<?php include 'footer.php'; ?>
+
+Header.php
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Весна - Продуктовий магазин</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+    <h1>Весна - Продуктовий магазин</h1>
+    <nav>
+        <a href="main.php?page=products">Товари</a>
+        <a href="main.php?page=cart">Кошик</a>
+        <a href="main.php?page=profile">Профіль</a>
+        <?php if (isset($_SESSION['user'])): ?>
+            <a href="logout.php">Logout</a>
+        <?php else: ?>
+            <a href="main.php?page=login">Login</a>
+        <?php endif; ?>
+    </nav>
+</header>
+<div class="container">
+
+Footer.php
+
+</div> 
+<footer>
+    <p>&copy; 2025 Продуктовий магазин "Весна"</p>
+</footer>
+</body>
+</html>
+
+Login.php
+<?php
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $creds = require 'credential.php';
+    $inputUser = $_POST['username'] ?? '';
+    $inputPass = $_POST['password'] ?? '';
+    if ($inputUser === $creds['username'] && $inputPass === $creds['password']) {
+        $_SESSION['username'] = $inputUser;
+        $_SESSION['login_time'] = date('Y-m-d H:i:s');
+        header('Location: main.php?page=products');
+        exit;
+    } else {
+        $error = "Неправильний логін або пароль.";
+    }
+}
+?>
+
+<h2>Login</h2>
+<?php if (!empty($error)) echo "<p style='color:red;'>$error</p>"; ?>
+<form method="POST" action="main.php?page=login">
+    <label>Ім’я користувача: <input type="text" name="username" required></label><br>
+    <label>Пароль: <input type="password" name="password" required></label><br>
+    <button type="submit">Login</button>
+</form>
